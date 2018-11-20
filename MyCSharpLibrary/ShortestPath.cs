@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace MyCSharpLibrary
 {
-    public class ShortestPath<TNode>
+    public class ShortestPath<TNode> 
     {
         //source, other
         private readonly Dictionary<TNode, List<TNode>> _nodeMap = new Dictionary<TNode, List<TNode>>();
@@ -82,28 +82,43 @@ namespace MyCSharpLibrary
 
         private Dictionary<TNode, TNode> Dijkstra(TNode start)
         {
+            //Create Map
+            var map = new Dictionary<TNode, List<TNode>>();
+            foreach (var keyValuePairNode in _nodeMap)
+            {
+                var list = new List<TNode>();
+                map.Add(keyValuePairNode.Key, list);
+                foreach (var oNode in keyValuePairNode.Value)
+                {
+                    if (_nodeMap.ContainsKey(oNode))
+                    {
+                        list.Add(oNode);
+                    }
+                }
+            }
+
             //point, dist
             var dist = new Dictionary<TNode, int>();
-            foreach (var p in _nodeMap)
+            foreach (var p in map)
             {
                 dist[p.Key] = 0;
             }
 
             //point, prior
             var prior = new Dictionary<TNode, TNode>();
-            foreach (var p in _nodeMap)
+            foreach (var p in map)
             {
                 prior[p.Key] = default(TNode);
             }
 
             //point, decided
             var decided = new Dictionary<TNode, bool>();
-            foreach (var p in _nodeMap)
+            foreach (var p in map)
             {
                 decided[p.Key] = false;
             }
 
-            foreach (var point in _nodeMap)
+            foreach (var point in map)
             {
                 var key = point.Key;
                 if (_cost[start].TryGetValue(key, out var value))
@@ -121,7 +136,7 @@ namespace MyCSharpLibrary
             //Dijkstra
             decided[start] = true;
             TNode Vx = default(TNode);
-            foreach (var point in _nodeMap)
+            foreach (var point in map)
             {
                 find_min(ref Vx);
                 if ((typeof(TNode).IsValueType && Vx.Equals(default(TNode))) || Vx == null)
@@ -163,7 +178,7 @@ namespace MyCSharpLibrary
             {
                 TNode low = default(TNode);
                 int lowest = int.MaxValue;
-                foreach (var point in _nodeMap.Keys)
+                foreach (var point in map.Keys)
                 {
                     if (decided[point] == false && dist[point] < lowest)
                     {
