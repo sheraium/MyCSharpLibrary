@@ -8,13 +8,12 @@ namespace MyCSharpLibrary.Threading
 {
     public class ThreadWorker : IDisposable
     {
-        private int _interval = 1000;
-        private Action _task;
         private bool _doWorkFlag;
+        private int _interval = 1000;
+        private DateTime _nextCanRunTime = DateTime.Now;
         private bool _runFlag;
-        private readonly Stopwatch _stopwatch = new Stopwatch();
+        private Action _task;
         private Thread _worker = null;
-        public bool IsRunning => _doWorkFlag;
 
         public ThreadWorker(Action task, int interval = 1000, bool startFlag = true)
         {
@@ -25,14 +24,22 @@ namespace MyCSharpLibrary.Threading
             _doWorkFlag = startFlag;
         }
 
-        public void Start()
+        public int Interval
         {
-            _doWorkFlag = true;
+            get => _interval;
+            set => _interval = value < 10 ? 10 : value;
         }
+
+        public bool IsRunning => _doWorkFlag;
 
         public void Pause()
         {
             _doWorkFlag = false;
+        }
+
+        public void Start()
+        {
+            _doWorkFlag = true;
         }
 
         private void Initial()
@@ -47,36 +54,38 @@ namespace MyCSharpLibrary.Threading
         {
             while (_runFlag)
             {
-                _stopwatch.Start();
-                if (_doWorkFlag)
+                try
                 {
-                    try
+                    if (_doWorkFlag && DateTime.Now > _nextCanRunTime)
                     {
-                        _task?.Invoke();
+                        try
+                        {
+                            _nextCanRunTime = DateTime.Now.AddMilliseconds(_interval);
+                            _task?.Invoke();
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"{ex.Message}-{ex.StackTrace}");
+                        }
                     }
-                    catch (Exception ex)
+                    else if (_nextCanRunTime > DateTime.Now.AddMilliseconds(_interval))
                     {
+                        _nextCanRunTime = DateTime.Now;
+                        continue;
                     }
-                }
-                _stopwatch.Stop();
-                var haveToWait = HaveToWait(_stopwatch);
-                _stopwatch.Reset();
-                SpinWait.SpinUntil(() => haveToWait < 0, haveToWait);
-            }
-        }
 
-        private int HaveToWait(Stopwatch stopwatch)
-        {
-            try
-            {
-                var haveToWait = _interval - stopwatch.ElapsedMilliseconds;
-                return Convert.ToInt32(haveToWait > 0 ? haveToWait : 0);
+                    SpinWait.SpinUntil(() => false, 10);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"{ex.Message}-{ex.StackTrace}");
+                }
             }
-            catch (OverflowException ex) { }
-            return 0;
         }
 
         #region IDisposeable interface implementation
+
+        private bool disposed = false;
 
         ~ThreadWorker()
         {
@@ -85,8 +94,6 @@ namespace MyCSharpLibrary.Threading
             // readability and maintainability.
             Dispose(false);
         }
-
-        private bool disposed = false;
 
         public void Dispose()
         {
@@ -101,7 +108,6 @@ namespace MyCSharpLibrary.Threading
                 if (disposing)
                 {
                     // Dispose managed resources.
-
                 }
                 // Call the appropriate methods to clean up
                 // unmanaged resources here.
